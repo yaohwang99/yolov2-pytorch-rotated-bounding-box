@@ -14,7 +14,7 @@ class YOLOv2Dataset(Dataset):
     def __init__(self, root, split, transform):
         self.root_dir = os.path.join(root, split)
         self.transform = transform
-        self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('0.jpg')]
+        self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('_0.jpg')]
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     def __len__(self):
         return len(self.image_list)

@@ -32,14 +32,16 @@ class YOLOv2Loss(nn.Module):
         cls = output[:, :, 5:, :].contiguous().view(batch_size * self.num_anchors, self.num_classes,
                                                     height * width).transpose(1, 2).contiguous().view(-1,
                                                                                                       self.num_classes)
-
+        # print(coord.shape, conf.shape, cls.shape)
+        # torch.Size([4, 5, 4, 169]) torch.Size([4, 5, 169]) torch.Size([3380, 10])
         # Create prediction boxes
-        pred_boxes = torch.FloatTensor(batch_size * self.num_anchors * height * width, 4)
-        lin_x = torch.range(0, width - 1).repeat(height, 1).view(height * width)
-        lin_y = torch.range(0, height - 1).repeat(width, 1).t().contiguous().view(height * width)
+        pred_boxes = torch.zeros([batch_size * self.num_anchors * height * width, 4])
+        lin_x = torch.arange(0, width).repeat(height, 1).view(height * width)
+        lin_y = torch.arange(0, height).repeat(width, 1).t().contiguous().view(height * width)
         anchor_w = self.anchors[:, 0].contiguous().view(self.num_anchors, 1)
         anchor_h = self.anchors[:, 1].contiguous().view(self.num_anchors, 1)
-
+        # print("check 2:", pred_boxes.shape, lin_x, lin_y, anchor_w, anchor_h)
+        # torch.Size([3380, 4])
         if torch.cuda.is_available():
             pred_boxes = pred_boxes.cuda()
             lin_x = lin_x.cuda()
@@ -52,13 +54,17 @@ class YOLOv2Loss(nn.Module):
         pred_boxes[:, 2] = (coord[:, :, 2].detach().exp() * anchor_w).view(-1)
         pred_boxes[:, 3] = (coord[:, :, 3].detach().exp() * anchor_h).view(-1)
         pred_boxes = pred_boxes.cpu()
-
+        # print("check 3:", pred_boxes.shape)
+        # torch.Size([3380, 4])
         # Get target values
         coord_mask, conf_mask, cls_mask, tcoord, tconf, tcls = self.build_targets(pred_boxes, target, height, width)
+        # print("check 4:", coord_mask.shape, conf_mask.shape, cls_mask.shape, tcoord.shape, tconf.shape, tcls.shape)
+        # torch.Size([4, 5, 1, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 4, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169])
         coord_mask = coord_mask.expand_as(tcoord)
         tcls = tcls[cls_mask].view(-1).long()
         cls_mask = cls_mask.view(-1, 1).repeat(1, self.num_classes)
-
+        # print("check 5:", coord_mask.shape, cls_mask.shape, tcls.shape)
+        # torch.Size([4, 5, 4, 169]) torch.Size([3380, 10]) torch.Size([4])
         if torch.cuda.is_available():
             tcoord = tcoord.cuda()
             tconf = tconf.cuda()
@@ -69,7 +75,6 @@ class YOLOv2Loss(nn.Module):
 
         conf_mask = conf_mask.sqrt()
         cls = cls[cls_mask].view(-1, self.num_classes)
-
         # Compute losses
         mse = nn.MSELoss(size_average=False)
         ce = nn.CrossEntropyLoss(size_average=False)
@@ -108,10 +113,10 @@ class YOLOv2Loss(nn.Module):
                 # gt[i, 1] = (anno[1] + anno[3] / 2) / self.reduction
                 # gt[i, 2] = anno[2] / self.reduction
                 # gt[i, 3] = anno[3] / self.reduction
-                gt[i, 0] = anno[0]
-                gt[i, 1] = anno[1]
-                gt[i, 2] = anno[2]
-                gt[i, 3] = anno[3]
+                gt[i, 0] = anno[0] * width
+                gt[i, 1] = anno[1] * height
+                gt[i, 2] = anno[2] * width
+                gt[i, 3] = anno[3] * height
 
             # Set confidence mask of matching detections to 0
             iou_gt_pred = bbox_ious(gt, cur_pred_boxes)

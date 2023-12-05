@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 num_classes=10
 batch_size=4
 num_workers=0
-pre_trained_model_path = "./yolov2_model_80.pth"
+pre_trained_model_path = "./yolov2_model_250.pth"
 # Define transformation for the validation dataset
 transform_val = transforms.Compose([transforms.Resize((416, 416)),
                                     transforms.ToTensor()])
