@@ -15,7 +15,7 @@ import matplotlib.patches as patches
 num_classes=10
 batch_size=4
 num_workers=0
-pre_trained_model_path = "./yolov2_model_250.pth"
+pre_trained_model_path = "./yolov2_model_680.pth"
 # Define transformation for the validation dataset
 transform_val = transforms.Compose([transforms.Resize((416, 416)),
                                     transforms.ToTensor()])
@@ -36,15 +36,10 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
     w = pred.size(3)
 
     # Compute xc,yc, w,h, box_score on Tensor
-    lin_x = torch.linspace(0, w - 1, w).repeat(h, 1).view(h * w)
-    lin_y = torch.linspace(0, h - 1, h).repeat(w, 1).t().contiguous().view(h * w)
-    anchor_w = anchors[:, 0].contiguous().view(1, num_anchors, 1)
-    anchor_h = anchors[:, 1].contiguous().view(1, num_anchors, 1)
-    if torch.cuda.is_available():
-        lin_x = lin_x.cuda()
-        lin_y = lin_y.cuda()
-        anchor_w = anchor_w.cuda()
-        anchor_h = anchor_h.cuda()
+    lin_x = torch.linspace(0, w - 1, w).repeat(h, 1).view(h * w).to(device)
+    lin_y = torch.linspace(0, h - 1, h).repeat(w, 1).t().contiguous().view(h * w).to(device)
+    anchor_w = anchors[:, 0].contiguous().view(1, num_anchors, 1).to(device)
+    anchor_h = anchors[:, 1].contiguous().view(1, num_anchors, 1).to(device)
 
     pred = pred.view(batch, num_anchors, -1, h * w)
     pred[:, :, 0, :].sigmoid_().add_(lin_x).div_(w)
@@ -53,8 +48,7 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
     pred[:, :, 3, :].exp_().mul_(anchor_h).div_(h)
     pred[:, :, 4, :].sigmoid_()
 
-    with torch.no_grad():
-        cls_scores = torch.nn.functional.softmax(pred[:, :, 5:, :], 2)
+    cls_scores = torch.nn.functional.softmax(pred[:, :, 5:, :], 2)
     cls_max, cls_max_idx = torch.max(cls_scores, 2)
     cls_max_idx = cls_max_idx.float()
     cls_max.mul_(pred[:, :, 4, :])
@@ -72,7 +66,6 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
         scores = cls_max[score_thresh]
         idx = cls_max_idx[score_thresh]
         detections = torch.cat([coords, scores[:, None], idx[:, None]], dim=1)
-
         max_det_per_batch = num_anchors * h * w
         slices = [slice(max_det_per_batch * i, max_det_per_batch * (i + 1)) for i in range(batch)]
         det_per_batch = torch.tensor([score_thresh_flat[s].int().sum() for s in slices], dtype=torch.int32)
@@ -94,7 +87,6 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
         b = boxes[:, 2:4]
         bboxes = torch.cat([a - b / 2, a + b / 2], 1)
         scores = boxes[:, 4]
-
         # Sort coordinates by descending score
         scores, order = scores.sort(0, descending=True)
         x1, y1, x2, y2 = bboxes[order].split(1, 1)
@@ -102,7 +94,6 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
         # Compute dx and dy between each pair of boxes (these mat contain every pair twice...)
         dx = (x2.min(x2.t()) - x1.max(x1.t())).clamp(min=0)
         dy = (y2.min(y2.t()) - y1.max(y1.t())).clamp(min=0)
-
         # Compute iou
         intersections = dx * dy
         areas = (x2 - x1) * (y2 - y1)
@@ -111,18 +102,8 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
 
         # Filter based on iou (and class)
         conflicting = (ious > nms_threshold).triu(1)
-
         keep = conflicting.sum(0).byte()
-        keep = keep.cpu()
-        conflicting = conflicting.cpu()
-
-        keep_len = len(keep) - 1
-        for i in range(1, keep_len):
-            if keep[i] > 0:
-                keep = ~conflicting[i]
-        if torch.cuda.is_available():
-            keep = keep.cuda()
-
+        keep = keep.to(device)
         keep = (keep == 0)
         selected_boxes.append(boxes[order][keep[:, None].expand_as(boxes)].view(-1, 6).contiguous())
 
@@ -137,13 +118,13 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
             boxes[:, 1] -= boxes[:, 3] / 2
 
             final_boxes.append([[box[0].item(), box[1].item(), box[2].item(), box[3].item(), box[4].item(),
-                                 [int(box[5].item())]] for box in boxes])
+                                 int(box[5].item())] for box in boxes])
     return final_boxes
 with torch.no_grad():
     for val_images, val_targets in val_loader:
         # Forward pass
         val_outputs = model(val_images)
-        predictions = post_processing(val_outputs, 416, model.anchors, 0.1, 0.1)
+        predictions = post_processing(val_outputs, 416, model.anchors, 0.1, 0.4)
         for b, (prediction, val_image) in enumerate(zip(predictions, val_images)):
 
             output_image = val_image.cpu().permute(1, 2, 0)
@@ -154,7 +135,7 @@ with torch.no_grad():
                 ymin = int(max(pred[1], 0))
                 xmax = int(min((pred[0] + pred[2]), 416))
                 ymax = int(min((pred[1] + pred[3]), 416))
-                class_label = pred[4]
+                class_label = pred[5]
                 # Create a rotated rectangle patch
                 rect = patches.Rectangle(
                     (xmin, ymin), xmax - xmin, ymax - ymin,

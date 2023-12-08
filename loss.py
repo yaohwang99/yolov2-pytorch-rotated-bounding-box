@@ -76,11 +76,11 @@ class YOLOv2Loss(nn.Module):
         conf_mask = conf_mask.sqrt()
         cls = cls[cls_mask].view(-1, self.num_classes)
         # Compute losses
-        mse = nn.MSELoss(size_average=False)
-        ce = nn.CrossEntropyLoss(size_average=False)
-        self.loss_coord = self.coord_scale * mse(coord * coord_mask, tcoord * coord_mask) / batch_size
-        self.loss_conf = mse(conf * conf_mask, tconf * conf_mask) / batch_size
-        self.loss_cls = self.class_scale * 2 * ce(cls, tcls) / batch_size
+        mse = nn.MSELoss()
+        ce = nn.CrossEntropyLoss()
+        self.loss_coord = self.coord_scale * mse(coord * coord_mask, tcoord * coord_mask)
+        self.loss_conf = mse(conf * conf_mask, tconf * conf_mask)
+        self.loss_cls = self.class_scale * 2 * ce(cls, tcls)
         self.loss_tot = self.loss_coord + self.loss_conf + self.loss_cls
 
         return self.loss_tot
@@ -109,10 +109,6 @@ class YOLOv2Loss(nn.Module):
                 anchors = torch.cat([torch.zeros_like(self.anchors), self.anchors], 1)
             gt = torch.zeros(len(ground_truth[b]), 4)
             for i, anno in enumerate(ground_truth[b]):
-                # gt[i, 0] = (anno[0] + anno[2] / 2) / self.reduction
-                # gt[i, 1] = (anno[1] + anno[3] / 2) / self.reduction
-                # gt[i, 2] = anno[2] / self.reduction
-                # gt[i, 3] = anno[3] / self.reduction
                 gt[i, 0] = anno[0] * width
                 gt[i, 1] = anno[1] * height
                 gt[i, 2] = anno[2] * width

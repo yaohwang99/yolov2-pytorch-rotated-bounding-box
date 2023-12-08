@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torchvision import datasets
+import torchvision.transforms.v2 as transforms
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from model import YOLOv2
@@ -12,10 +13,10 @@ num_classes=10
 batch_size=4
 num_workers=0
 num_epochs = 500
-trained_epoch = 250
+trained_epoch = 300
 # Load your trained YOLOv2 model
 model = YOLOv2(num_classes=num_classes)  # Adjust the number of classes and boxes accordingly
-model.load_state_dict(torch.load('yolov2_model_250.pth'))  # Load the trained weights
+model.load_state_dict(torch.load('yolov2_model_300.pth'))  # Load the trained weights
 
 # Define transformation for the training dataset
 transform_train = transforms.Compose([transforms.Resize((416, 416)),
