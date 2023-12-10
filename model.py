@@ -20,12 +20,20 @@ class Conv2d(nn.Module):
         return x
 
 class YOLOv2(nn.Module):
-    def __init__(self, num_classes, anchors=[(1.3221, 1.73145), (3.19275, 4.00944), (5.05587, 8.09892), (9.47112, 4.84053),
-                          (11.2364, 10.0071)]):
+    def __init__(self, num_classes, anchors=None, detect_angle=False):
+        import math
         super(YOLOv2, self).__init__()
         self.num_classes = num_classes
-        self.num_boxes = len(anchors)
         self.anchors = anchors
+        if not anchors:
+            if detect_angle:
+                self.anchors = [(1.5625, 1.5625, 2 * i * math.pi / 16) for i in range(16)]
+            else:
+                self.anchors = [(1.3221, 1.73145), (3.19275, 4.00944), (5.05587, 8.09892), (9.47112, 4.84053),
+                            (11.2364, 10.0071)]
+
+        self.num_boxes = len(self.anchors)
+        
         self.layer1 = Conv2d(3, 32, 3, True)
         self.layer2 = Conv2d(32, 64, 3, True)
 
@@ -56,7 +64,10 @@ class YOLOv2(nn.Module):
         self.head2 = nn.Sequential(
             Conv2d(2048, 1024, 3, False),
             Conv2d(1024, self.num_boxes * (self.num_classes + 5), 1, False))
-    
+        if detect_angle:
+            self.head2 = nn.Sequential(
+            Conv2d(2048, 1024, 3, False),
+            Conv2d(1024, self.num_boxes * (self.num_classes + 6), 1, False))
     
     def forward(self, x):
         x = self.layer1(x)
@@ -84,7 +95,7 @@ class YOLOv2(nn.Module):
         return x
 
 if __name__ == '__main__':
-    model = YOLOv2(10)
+    model = YOLOv2(10,detect_angle=True)
     input = torch.randn(4, 3, 416, 416)
     pred = model.forward(input)
-    print(pred.shape)
+    print(pred.shape, len(model.anchors))

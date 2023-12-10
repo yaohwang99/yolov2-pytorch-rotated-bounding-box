@@ -14,7 +14,7 @@ class YOLOv2Dataset(Dataset):
     def __init__(self, root, split, transform):
         self.root_dir = os.path.join(root, split)
         self.transform = transform
-        self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('_0.jpg')]
+        self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('.jpg')]
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     def __len__(self):
         return len(self.image_list)
@@ -33,6 +33,6 @@ class YOLOv2Dataset(Dataset):
         labels = []
         for line in lines:
             x, y, w, h, angle, cls= map(float, line.strip().split())
-            labels.append(torch.tensor([x, y, w, h, cls, angle], device=self.device))
+            labels.append(torch.tensor([x, y, w, h, angle, cls], device=self.device))
         return image, labels
     
