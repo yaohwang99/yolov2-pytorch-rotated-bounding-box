@@ -100,7 +100,7 @@ def post_processing(pred, image_size, anchors, conf_threshold, nms_threshold):
         unions = (areas + areas.t()) - intersections
         ious = intersections / unions
 
-        # Filter based on iou (and class)
+        # Filter based on iou (does not consider class)
         conflicting = (ious > nms_threshold).triu(1)
         keep = conflicting.sum(0).byte()
         keep = keep.to(device)
@@ -135,6 +135,7 @@ with torch.no_grad():
                 ymin = int(max(pred[1], 0))
                 xmax = int(min((pred[0] + pred[2]), 416))
                 ymax = int(min((pred[1] + pred[3]), 416))
+                conf = pred[4]
                 class_label = pred[5]
                 # Create a rotated rectangle patch
                 rect = patches.Rectangle(
@@ -145,5 +146,5 @@ with torch.no_grad():
                 ax.add_patch(rect)
 
                 # Annotate with class label
-                ax.text(xmin, ymin, f'{class_label}', color='r', fontsize=8, va='bottom', ha='left')
+                ax.text(xmin, ymin, f'{class_label}, {conf:.2f}', color='r', fontsize=12, va='bottom', ha='left')
             plt.show()
