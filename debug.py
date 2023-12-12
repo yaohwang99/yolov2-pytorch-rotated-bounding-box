@@ -13,7 +13,7 @@ batch_size=4
 num_workers=0
 num_epochs = 500
 # Load your trained YOLOv2 model
-model = YOLOv2(num_classes=num_classes)  # Adjust the number of classes and boxes accordingly
+model = YOLOv2(num_classes=num_classes, detect_angle=True)  # Adjust the number of classes and boxes accordingly
 # model.load_state_dict(torch.load('yolov2_model.pth'))  # Load the trained weights
 
 # Define transformation for the training dataset

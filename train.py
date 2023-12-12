@@ -13,10 +13,11 @@ num_classes=10
 batch_size=4
 num_workers=0
 num_epochs = 1000
-trained_epoch = 0
+trained_epoch = 152
 # Load your trained YOLOv2 model
 model = YOLOv2(num_classes=num_classes, detect_angle=True)  # Adjust the number of classes and boxes accordingly
-# model.load_state_dict(torch.load('ryolov2_model_300.pth'))  # Load the trained weights
+if trained_epoch > 0:
+    model.load_state_dict(torch.load('./weights/ryolov2_model_' + str(trained_epoch) + '.pth'))  # Load the trained weights
 
 # Define transformation for the training dataset
 transform_train = transforms.Compose([transforms.Resize((416, 416)),
@@ -57,13 +58,16 @@ for epoch in range(num_epochs):
             # Forward pass
             outputs = model(images)
             # Compute loss
-            loss = criterion(outputs, targets)
+            loss, loss_dict = criterion(outputs, targets)
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
+            avg_train_loss = running_loss / (pbar.n + 1)
+            # pbar.set_postfix(loss=f'{avg_train_loss:.4f}')
+            pbar.set_postfix(loss_dict)
             pbar.update(1)
 
     avg_train_loss = running_loss / len(train_loader)
@@ -79,7 +83,8 @@ for epoch in range(num_epochs):
             val_outputs = model(val_images)
 
             # Compute validation loss
-            val_loss += criterion(val_outputs, val_targets).item()
+            loss, _ = criterion(val_outputs, val_targets)
+            val_loss += loss.item()
 
     avg_val_loss = val_loss / len(val_loader)
     print(f'Validation Loss: {avg_val_loss:.4f}')
@@ -87,10 +92,9 @@ for epoch in range(num_epochs):
     # Log losses to TensorBoard
     writer.add_scalar('Loss/Train', avg_train_loss, epoch)
     writer.add_scalar('Loss/Validation', avg_val_loss, epoch)
-    if (epoch + 1) % 10 == 0:
-        torch.save(model.state_dict(), 'ryolov2_model_' + str(epoch + 1 + trained_epoch) + '.pth')
+    torch.save(model.state_dict(), './weights/ryolov2_model_' + str(epoch + 1 + trained_epoch) + '.pth')
 # Save the trained model
-torch.save(model.state_dict(), 'ryolov2_model.pth')
+torch.save(model.state_dict(), './weights/ryolov2_model.pth')
 
 # Close the TensorBoard writer
 writer.close()
