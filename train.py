@@ -42,9 +42,6 @@ optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 # Set up TensorBoard writer
 writer = SummaryWriter()
 
-# Training loop
-assert torch.cuda.is_available()
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 for epoch in range(num_epochs):

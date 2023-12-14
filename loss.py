@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 class YOLOv2Loss(nn.Module):
     def __init__(self, num_classes, anchors, coord_scale=5.0, noobject_scale=1.0,
-                 object_scale=5.0, class_scale=1.0, theta_scale=5.0, thresh=0.6):
+                 object_scale=5.0, class_scale=1.0, theta_scale=5.0):
         super(YOLOv2Loss, self).__init__()
         self.num_classes = num_classes
         self.num_anchors = len(anchors)
@@ -14,7 +14,6 @@ class YOLOv2Loss(nn.Module):
         self.object_scale = object_scale
         self.class_scale = class_scale
         self.theta_scale = theta_scale
-        self.thresh = thresh
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     def forward(self, output, target):
 
