@@ -26,10 +26,8 @@ The method involves a stepwise approach to achieve real-time object pose detecti
 6. **Training Configuration:** Training conducted with specific configurations such as learning rate, number of epochs, and hardware specifications.
 
 ![Loss function](images/loss.png)
-*Figure 1: Loss function of the proposed system.*
 
 ![Anchor boxes](images/anchor_box.png)
-*Figure 2: Anchor boxes of the proposed system.*
 
 ## Results
 
@@ -40,7 +38,7 @@ The performance of the proposed method and the baseline (standard YOLOv2) was ev
 | Baseline           | 88.2        |
 | Modified Method    | 88.9        |
 
-*Table 1: Comparison of mAP@0.5 between the Baseline and Modified Method.*
+![Demo](images/demo.mp4)
 
 ## Conclusion
 
