@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import numpy as np
-import math
+
 # Function to parse the label from the text file
 def parse_label(label_path):
     with open(label_path, 'r') as file:

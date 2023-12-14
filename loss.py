@@ -15,7 +15,7 @@ class YOLOv2Loss(nn.Module):
         self.class_scale = class_scale
         self.theta_scale = theta_scale
         self.thresh = thresh
-
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     def forward(self, output, target):
 
         batch_size = output.shape[0]
@@ -32,37 +32,14 @@ class YOLOv2Loss(nn.Module):
         cls = output[:, :, 6:, :].contiguous().view(batch_size * self.num_anchors, self.num_classes,
                                                     height * width).transpose(1, 2).contiguous().view(-1,
                                                                                                       self.num_classes)
-        # print(coord.shape, conf.shape, cls.shape)
-        # torch.Size([4, 5, 4, 169]) torch.Size([4, 5, 169]) torch.Size([3380, 10])
-        # Create prediction boxes
-        # pred_boxes = torch.zeros([batch_size * self.num_anchors * height * width, 5])
-        lin_x = torch.arange(0, width).repeat(height, 1).view(height * width)
-        lin_y = torch.arange(0, height).repeat(width, 1).t().contiguous().view(height * width)
-        anchor_w = self.anchors[:, 0].contiguous().view(self.num_anchors, 1)
-        anchor_h = self.anchors[:, 1].contiguous().view(self.num_anchors, 1)
-        anchor_a = self.anchors[:, 2].contiguous().view(self.num_anchors, 1)
-        # print("check 2:", pred_boxes.shape, lin_x, lin_y, anchor_w, anchor_h)
-        # torch.Size([3380, 4])
-        if torch.cuda.is_available():
-            # pred_boxes = pred_boxes.cuda()
-            lin_x = lin_x.cuda()
-            lin_y = lin_y.cuda()
-            anchor_w = anchor_w.cuda()
-            anchor_h = anchor_h.cuda()
-            anchor_a = anchor_a.cuda()
-
         # Get target values
         coord_mask, conf_mask, cls_mask, tcoord, tconf, tcls, ttheta = self.build_targets(target, height, width)
-        
-        # print("check 4:", coord_mask.shape, conf_mask.shape, cls_mask.shape, tcoord.shape, tconf.shape, tcls.shape)
-        # torch.Size([4, 5, 1, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 4, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169])
+
         theta = theta[cls_mask].view(-1)
         ttheta = ttheta[cls_mask].view(-1)
         coord_mask = coord_mask.expand_as(tcoord)
         tcls = tcls[cls_mask].view(-1).long()
         cls_mask = cls_mask.view(-1, 1).repeat(1, self.num_classes)
-        # print("check 5:", coord_mask.shape, cls_mask.shape, tcls.shape)
-        # torch.Size([4, 5, 4, 169]) torch.Size([3380, 10]) torch.Size([4])
         cls = cls[cls_mask].view(-1, self.num_classes)
         
         # Compute losses
@@ -80,28 +57,17 @@ class YOLOv2Loss(nn.Module):
 
     def build_targets(self, ground_truth, height, width):
         batch_size = len(ground_truth)
-        conf_mask = torch.ones(batch_size, self.num_anchors, height * width, requires_grad=False) * self.noobject_scale
-        coord_mask = torch.zeros(batch_size, self.num_anchors, 1, height * width, requires_grad=False).bool()
-        cls_mask = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False).bool()
-        tcoord = torch.zeros(batch_size, self.num_anchors, 4, height * width, requires_grad=False)
-        tconf = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False)
-        tcls = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False)
-        ttheta = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False)
-        if torch.cuda.is_available():
-            tcoord = tcoord.cuda()
-            tconf = tconf.cuda()
-            coord_mask = coord_mask.cuda()
-            conf_mask = conf_mask.cuda()
-            tcls = tcls.cuda()
-            cls_mask = cls_mask.cuda()
-            ttheta = ttheta.cuda()
+        conf_mask = torch.ones(batch_size, self.num_anchors, height * width, requires_grad=False, device=self.device) * self.noobject_scale
+        coord_mask = torch.zeros(batch_size, self.num_anchors, 1, height * width, requires_grad=False, device=self.device).bool()
+        cls_mask = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False, device=self.device).bool()
+        tcoord = torch.zeros(batch_size, self.num_anchors, 4, height * width, requires_grad=False, device=self.device)
+        tconf = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False, device=self.device)
+        tcls = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False, device=self.device)
+        ttheta = torch.zeros(batch_size, self.num_anchors, height * width, requires_grad=False, device=self.device)
         for b in range(batch_size):
             if len(ground_truth[b]) == 0:
                 continue
 
-            # Build up tensors
-            # cur_pred_boxes = pred_boxes[
-            #                  b * (self.num_anchors * height * width):(b + 1) * (self.num_anchors * height * width)]
             anchors = torch.cat([torch.zeros_like(self.anchors[...,:2]), self.anchors], 1)
             gt = torch.zeros(len(ground_truth[b]), 5)
             for i, anno in enumerate(ground_truth[b]):
@@ -113,7 +79,7 @@ class YOLOv2Loss(nn.Module):
 
             # Find best anchor for each ground truth
             gt_expanded = gt[..., 4].repeat(self.num_anchors, 1)
-            # Expand anchors to have the same shape as gt_wh_clone
+            # Expand anchors to have the same shape as gt_expanded
             anchors_expanded = torch.unsqueeze(anchors[...,4], 1).repeat(1, len(ground_truth[b]))
 
             # Calculate best anchor
