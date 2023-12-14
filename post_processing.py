@@ -1,6 +1,6 @@
 import torch
 def post_processing(pred, anchors, conf_threshold=0.5, nms_threshold=0.1, detect_angle=True):
-    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     num_anchors = len(anchors)
     anchors = torch.tensor(anchors)
 
