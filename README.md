@@ -19,11 +19,15 @@ Previous approaches, including the use of YOLOv4, have shown promise but often d
 The method involves a stepwise approach to achieve real-time object pose detection:
 
 1. **Baseline:** Utilization of the standard YOLOv2 model as a baseline for real-time object detection.
-2. **Network for Object Pose Detection:** Adaptation of the YOLOv2 architecture to incorporate 2.5D pose information, involving adjustments to the output shape and loss function.
+2. **Network for Object Pose Detection:** Adaptation of the YOLOv2 architecture to incorporate 2.5D pose information, involving adjustments to the output shape, anchor boxes, and loss function.
 3. **Training:** Training the network from scratch to ensure compatibility with the wood block dataset and specific requirements of real-time pose detection.
-4. **Anchor Boxes:** Use of 16 square anchor boxes with an angle range to contribute to accurate localization of objects and their poses.
+4. **Anchor Boxes:** Use of 16 square anchor boxes with an angle range of 0, 22.5, 45, ..., 337.5 to contribute to accurate localization of objects and their poses.
 5. **Loss Function:** In addition to the original YOLOv2 loss function, the smooth L1 loss is employed to handle angle information in the pose estimation task.
-6. **Training Configuration:** Training conducted with specific configurations such as learning rate, number of epochs, and hardware specifications.
+6. **Training Configuration:** Training was conducted with the following configurations:
+
+- Learning Rate: 0.001
+- Number of Epochs: 300
+- Hardware: GTX 1050 GPU with 2GB memory
 
 ![Loss function](images/loss.png)
 
