@@ -38,7 +38,8 @@ The performance of the proposed method and the baseline (standard YOLOv2) was ev
 | Baseline           | 88.2        |
 | Modified Method    | 88.9        |
 
-![Demo](images/demo.mp4)
+https://github.com/yaohwang99/yolov2-pytorch-rotated-bounding-box/assets/95354972/0a54c460-302d-4aaa-9942-61198a9b5afc
+
 
 ## Conclusion
 
