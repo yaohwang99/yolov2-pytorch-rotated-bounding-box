@@ -52,7 +52,7 @@ class YOLOv2Loss(nn.Module):
             anchor_a = anchor_a.cuda()
 
         # Get target values
-        coord_mask, conf_mask, cls_mask, tcoord, tconf, tcls, ttheta = self.build_targets(None, target, height, width)
+        coord_mask, conf_mask, cls_mask, tcoord, tconf, tcls, ttheta = self.build_targets(target, height, width)
         
         # print("check 4:", coord_mask.shape, conf_mask.shape, cls_mask.shape, tcoord.shape, tconf.shape, tcls.shape)
         # torch.Size([4, 5, 1, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 4, 169]) torch.Size([4, 5, 169]) torch.Size([4, 5, 169])
@@ -69,9 +69,8 @@ class YOLOv2Loss(nn.Module):
         mse = nn.MSELoss()
         ce = nn.CrossEntropyLoss()
         sl = nn.SmoothL1Loss()
-        # self.loss_coord = self.coord_scale * kfiou_loss(coord[coord_mask].view(-1,5), tcoord[coord_mask].view(-1, 5)).sum(0)
-        self.loss_coord = self.coord_scale * mse(coord * coord_mask, tcoord * coord_mask)
-        self.loss_conf = mse(conf * conf_mask, tconf * conf_mask)
+        self.loss_coord = self.coord_scale * sl(coord * coord_mask, tcoord * coord_mask)
+        self.loss_conf = sl(conf * conf_mask, tconf * conf_mask)
         self.loss_cls = self.class_scale * 2 * ce(cls, tcls)
         self.loss_theta = self.theta_scale * sl(theta, ttheta)
         self.loss_tot = self.loss_coord + self.loss_conf + self.loss_cls + self.loss_theta
@@ -79,7 +78,7 @@ class YOLOv2Loss(nn.Module):
         return self.loss_tot, {"coord": self.loss_coord.item(), "conf": self.loss_conf.item(), 
                                "cls": self.loss_cls.item(), "theta": self.loss_theta.item()}
 
-    def build_targets(self, pred_boxes, ground_truth, height, width):
+    def build_targets(self, ground_truth, height, width):
         batch_size = len(ground_truth)
         conf_mask = torch.ones(batch_size, self.num_anchors, height * width, requires_grad=False) * self.noobject_scale
         coord_mask = torch.zeros(batch_size, self.num_anchors, 1, height * width, requires_grad=False).bool()

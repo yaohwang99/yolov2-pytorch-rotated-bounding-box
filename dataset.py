@@ -11,10 +11,12 @@ def collate_fn(batch):
 
     return images, labels
 class YOLOv2Dataset(Dataset):
-    def __init__(self, root, split, transform):
+    def __init__(self, root, split, transform, detect_angle=True):
         self.root_dir = os.path.join(root, split)
         self.transform = transform
         self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('.jpg')]
+        if not detect_angle:
+            self.image_list = [filename for filename in os.listdir(self.root_dir) if filename.endswith('_0.jpg')]
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     def __len__(self):
         return len(self.image_list)

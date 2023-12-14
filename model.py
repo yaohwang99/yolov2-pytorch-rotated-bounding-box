@@ -20,7 +20,7 @@ class Conv2d(nn.Module):
         return x
 
 class YOLOv2(nn.Module):
-    def __init__(self, num_classes, anchors=None, detect_angle=False):
+    def __init__(self, num_classes, anchors=None, detect_angle=True):
         import math
         super(YOLOv2, self).__init__()
         self.num_classes = num_classes

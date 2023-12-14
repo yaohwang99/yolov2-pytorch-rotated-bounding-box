@@ -12,23 +12,24 @@ from dataset import YOLOv2Dataset, collate_fn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import matplotlib.animation as animation
+import torchmetrics
+detect_angle=True
 num_classes=10
-batch_size=4
+batch_size=1
 num_workers=0
-pre_trained_model_path = "./weights/ryolov2_model_316.pth"
+pre_trained_model_path = "./weights/ryolov2_model_299.pth"
 # Define transformation for the validation dataset
 transform_val = transforms.Compose([transforms.Resize((416, 416)),
                                     transforms.ToTensor()])
-val_dataset = YOLOv2Dataset(root='./data', split='test', transform=transform_val)
+val_dataset = YOLOv2Dataset(root='./data', split='test', transform=transform_val, detect_angle=detect_angle)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_fn)
-model = YOLOv2(num_classes)
+model = YOLOv2(num_classes, detect_angle=detect_angle)
 
 model.load_state_dict(torch.load(pre_trained_model_path, map_location=lambda storage, loc: storage))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 model.eval()
-def post_processing(pred, anchors, conf_threshold=0.6, nms_threshold=0.1):
+def post_processing(pred, anchors, conf_threshold=0.5, nms_threshold=0.1, detect_angle=detect_angle):
     
     num_anchors = len(anchors)
     anchors = torch.tensor(anchors)
@@ -42,14 +43,16 @@ def post_processing(pred, anchors, conf_threshold=0.6, nms_threshold=0.1):
     lin_y = torch.linspace(0, h - 1, h).repeat(w, 1).t().contiguous().view(h * w).to(device)
     anchor_w = anchors[:, 0].contiguous().view(1, num_anchors, 1).to(device)
     anchor_h = anchors[:, 1].contiguous().view(1, num_anchors, 1).to(device)
-    anchor_a = anchors[:, 2].contiguous().view(1, num_anchors, 1).to(device)
+    if detect_angle:
+        anchor_a = anchors[:, 2].contiguous().view(1, num_anchors, 1).to(device)
     pred = pred.view(batch, num_anchors, -1, h * w)
     pred[:, :, 0, :].sigmoid_().add_(lin_x).div_(w)
     pred[:, :, 1, :].sigmoid_().add_(lin_y).div_(h)
     pred[:, :, 2, :].exp_().mul_(anchor_w).div_(w)
     pred[:, :, 3, :].exp_().mul_(anchor_h).div_(h)
     pred[:, :, 4, :].sigmoid_()
-    pred[:, :, 5, :].add_(anchor_a)
+    if detect_angle:
+        pred[:, :, 5, :].add_(anchor_a)
 
     cls_scores = torch.nn.functional.softmax(pred[:, :, 6:, :], 2)
     cls_max, cls_max_idx = torch.max(cls_scores, 2)
@@ -68,7 +71,9 @@ def post_processing(pred, anchors, conf_threshold=0.6, nms_threshold=0.1):
         coords = coords[score_thresh[..., None].expand_as(coords)].view(-1, 4)
         scores = cls_max[score_thresh]
         idx = cls_max_idx[score_thresh]
-        angle = pred.transpose(2, 3)[..., 5][score_thresh]
+        angle=torch.zeros_like(scores)
+        if detect_angle:
+            angle = pred.transpose(2, 3)[..., 5][score_thresh]
         detections = torch.cat([coords, scores[:, None], angle[:, None], idx[:, None]], dim=1)
         max_det_per_batch = num_anchors * h * w
         slices = [slice(max_det_per_batch * i, max_det_per_batch * (i + 1)) for i in range(batch)]
@@ -119,49 +124,54 @@ def post_processing(pred, anchors, conf_threshold=0.6, nms_threshold=0.1):
             final_boxes.append([[box[0].item(), box[1].item(), box[2].item(), box[3].item(), box[4].item(), box[5].item(), 
                                  int(box[6].item())] for box in boxes])
     return final_boxes
+pred_list=[]
+target_list=[]
 with torch.no_grad():
     import math
-    i = 0
     for val_images, val_targets in val_loader:
         # Forward pass
         val_outputs = model(val_images)
-        predictions = post_processing(val_outputs, model.anchors)
-        for b, (prediction, val_image) in enumerate(zip(predictions, val_images)):
+        predictions = post_processing(val_outputs, model.anchors, detect_angle=detect_angle)
+        for b, (prediction, val_image, val_target) in enumerate(zip(predictions, val_images, val_targets)):
 
-            output_image = val_image.cpu().permute(1, 2, 0)
-            fig, ax = plt.subplots(1)
-            ax.imshow(output_image)
+            # output_image = val_image.cpu().permute(1, 2, 0)
+            # fig, ax = plt.subplots(1)
+            # ax.imshow(output_image)
+            bboxes=[]
+            scores=[]
+            labels=[]
             for pred in prediction:
                 x, y, w, h, conf, angle, class_label = pred
+                
+                bboxes.append([x,y,w,h])
+                scores.append(conf)
+                labels.append(class_label)
                 x = x * val_image.shape[1]
                 y = y * val_image.shape[2]
                 w = w * val_image.shape[1]
                 h = h * val_image.shape[2]
-
                 # Create a rotated rectangle patch
-                rect = patches.Rectangle(
-                    (x - w / 2, y - h / 2), w, h, angle= -angle * 180 / math.pi,
-                    linewidth=2, edgecolor='r', facecolor='none', rotation_point = 'center'
-                )
+            #     rect = patches.Rectangle(
+            #         (x - w / 2, y - h / 2), w, h, angle= -angle * 180 / math.pi,
+            #         linewidth=2, edgecolor='r', facecolor='none', rotation_point = 'center'
+            #     )
 
-                arrow = patches.Arrow(x, y, w / 2 * math.cos(-angle - math.pi/2), w / 2 * math.sin(-angle - math.pi/2), color="green", linewidth=2)
+            #     arrow = patches.Arrow(x, y, w / 2 * math.cos(-angle - math.pi/2), w / 2 * math.sin(-angle - math.pi/2), color="green", linewidth=2)
 
-                # Add the patch to the Axes
-                ax.add_patch(rect)
-                ax.add_patch(arrow)
+            #     # Add the patch to the Axes
+            #     ax.add_patch(rect)
+            #     ax.add_patch(arrow)
 
-                # Annotate with class label
-                ax.text(x - w / 2, y - h / 2, f'{class_label}, {conf:.2f}', color='r', fontsize=12, va='bottom', ha='left')
-            # plt.savefig(f"./tmp/file%02d.png" % i)
-            i+=1
-            plt.show()
-# import os
-# import subprocess
-# import glob
-# os.chdir("./tmp")
-# subprocess.call([
-#     'ffmpeg', '-framerate', '8', '-i', 'file%02d.png', '-r', '30', '-pix_fmt', 'yuv420p',
-#     'video_name.mp4'
-# ])
-# for file_name in glob.glob("*.png"):
-#     os.remove(file_name)
+            #     # Annotate with class label
+            #     ax.text(x - w / 2, y - h / 2, f'{class_label}, {conf:.2f}', color='r', fontsize=12, va='bottom', ha='left')
+            # plt.show()
+            pred_list.append({"boxes":torch.tensor(bboxes, device=device),
+                                    "scores":torch.tensor(scores, device=device),
+                                    "labels":torch.tensor(labels, dtype=torch.int32, device=device)})
+            val_target = torch.stack(val_target, dim=0)
+            target_list.append({"boxes":val_target[...,:4],
+                                    "labels":val_target[...,5].to(torch.int32)})
+metric = torchmetrics.detection.mean_ap.MeanAveragePrecision(box_format='cxcywh')
+metric.update(pred_list, target_list)
+res = metric.compute()
+print(res['map_50'].item()*100, res['map_75'].item()*100)
