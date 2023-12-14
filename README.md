@@ -19,17 +19,19 @@ Previous approaches, including the use of YOLOv4, have shown promise but often d
 The method involves a stepwise approach to achieve real-time object pose detection:
 
 1. **Baseline:** Utilization of the standard YOLOv2 model as a baseline for real-time object detection.
-2. **Network for Object Pose Detection:** Adaptation of the YOLOv2 architecture to incorporate 2.5D pose information, involving adjustments to the output shape and loss function.
+2. **Network for Object Pose Detection:** Adaptation of the YOLOv2 architecture to incorporate 2.5D pose information, involving adjustments to the output shape, anchor boxes, and loss function.
 3. **Training:** Training the network from scratch to ensure compatibility with the wood block dataset and specific requirements of real-time pose detection.
-4. **Anchor Boxes:** Use of 16 square anchor boxes with an angle range to contribute to accurate localization of objects and their poses.
+4. **Anchor Boxes:** Use of 16 square anchor boxes with an angle range of 0, 22.5, 45, ..., 337.5 to contribute to accurate localization of objects and their poses.
 5. **Loss Function:** In addition to the original YOLOv2 loss function, the smooth L1 loss is employed to handle angle information in the pose estimation task.
-6. **Training Configuration:** Training conducted with specific configurations such as learning rate, number of epochs, and hardware specifications.
+6. **Training Configuration:** Training was conducted with the following configurations:
+
+- Learning Rate: 0.001
+- Number of Epochs: 300
+- Hardware: GTX 1050 GPU with 2GB memory
 
 ![Loss function](images/loss.png)
-*Figure 1: Loss function of the proposed system.*
 
 ![Anchor boxes](images/anchor_box.png)
-*Figure 2: Anchor boxes of the proposed system.*
 
 ## Results
 
@@ -40,7 +42,8 @@ The performance of the proposed method and the baseline (standard YOLOv2) was ev
 | Baseline           | 88.2        |
 | Modified Method    | 88.9        |
 
-*Table 1: Comparison of mAP@0.5 between the Baseline and Modified Method.*
+https://github.com/yaohwang99/yolov2-pytorch-rotated-bounding-box/assets/95354972/0a54c460-302d-4aaa-9942-61198a9b5afc
+
 
 ## Conclusion
 
